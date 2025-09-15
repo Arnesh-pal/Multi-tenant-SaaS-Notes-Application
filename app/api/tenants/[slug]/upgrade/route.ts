@@ -1,19 +1,19 @@
-export const dynamic = 'force-dynamic'; // Add force-dynamic
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt'; // Use getToken
+import { getToken } from 'next-auth/jwt';
 import prisma from '@/lib/prisma';
 import { Role } from '@prisma/client';
 
-// 🛑 The 'interface RouteParams' has been DELETED
-
 // POST /api/tenants/:slug/upgrade
-// This function signature is now fixed
+// This function signature is now fixed to the "context" pattern
 export async function POST(
     request: Request,
-    { params }: { params: { slug: string } } // <-- 1. TYPE FIX
+    context: { params: { slug: string } } // <-- 1. THE FIX IS HERE
 ) {
+    const params = context.params; // <-- 2. AND ADD THIS LINE
+
     // Use getToken instead of auth()
-    const token = await getToken({ // <-- 2. AUTH FIX
+    const token = await getToken({
         req: request,
         secret: process.env.AUTH_SECRET!,
         salt: "authjs.session-token"
@@ -30,7 +30,7 @@ export async function POST(
     }
 
     // 3. Ensure admin is upgrading their OWN tenant
-    if (token.tenantSlug !== params.slug) {
+    if (token.tenantSlug !== params.slug) { // This line works because of Step 2
         return NextResponse.json({ error: 'Forbidden: You can only upgrade your own tenant.' }, { status: 403 });
     }
 
@@ -47,7 +47,7 @@ export async function POST(
 
         return NextResponse.json({ status: 'upgraded' });
 
-    } catch (error) { // This 'error' is what the warning was about
+    } catch (error) {
         return NextResponse.json({ error: 'Failed to upgrade plan' }, { status: 500 });
     }
 }
