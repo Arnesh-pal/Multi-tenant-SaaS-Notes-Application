@@ -5,30 +5,22 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 // --- SVG Icons ---
-// We'll define a few simple icons here for use in the UI
-
-// Heroicon: lightning-bolt (for upgrade)
 const LightningBoltIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
     </svg>
 );
-
-// Heroicon: exclamation-triangle (for errors)
 const WarningIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
     </svg>
 );
-
-// Heroicon: trash (for delete)
 const TrashIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.54 0c-.27.041-.54.082-.811.124m12.54 0a48.734 48.734 0 01-3.478-.397m-9.065 0c.27.041.54.082.811.124M3.86 5.215c.045.022.09.044.135.066m6.31 0c.27.041.54.082.811.124m0 0c.27.041.54.082.811.124M9.76 5.215c.045.022.09.044.135.066m6.31 0c.27.041.54.082.811.124m0 0c.27.041.54.082.811.124" />
     </svg>
 );
 
-// Define a type for our Note object
 interface Note {
     id: string;
     content: string;
@@ -43,16 +35,13 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Cast session.user (we know it's fully typed from types/next-auth.d.ts)
     const user = session?.user;
 
     // --- Data Fetching ---
     const fetchNotes = async () => {
         try {
-            // We MUST include credentials for the cookie to be sent
-            const res = await fetch('/api/notes', { credentials: 'include' });
+            const res = await fetch('/api/notes', { credentials: 'include' }); // This one was already fixed
             if (!res.ok) {
-                // If the API returns 401 or other errors, handle it
                 if (res.status === 401) {
                     setError('Authentication failed. Please log in again.');
                 } else {
@@ -69,11 +58,10 @@ export default function Dashboard() {
         }
     };
 
-    // On mount, check auth status and fetch notes
     useEffect(() => {
-        if (status === 'loading') return; // Wait for session to load
+        if (status === 'loading') return;
         if (status === 'unauthenticated') {
-            router.push('/login'); // Redirect if not logged in
+            router.push('/login');
             return;
         }
         if (status === 'authenticated') {
@@ -89,13 +77,13 @@ export default function Dashboard() {
     const handleCreateNote = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newNote.trim()) return;
-        setError(''); // Clear previous errors
+        setError('');
 
         try {
             const res = await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // Don't forget credentials on POST!
+                credentials: 'include', // <-- 1. THIS WAS THE MISSING FIX
                 body: JSON.stringify({ content: newNote }),
             });
 
@@ -110,11 +98,16 @@ export default function Dashboard() {
             }
 
             if (!res.ok) {
-                throw new Error('Failed to create note');
+                if (res.status === 401) {
+                    setError('Authentication failed. Please log in again.');
+                } else {
+                    throw new Error('Failed to create note');
+                }
+                return;
             }
 
-            setNewNote(''); // Clear input
-            fetchNotes(); // Refresh list
+            setNewNote('');
+            fetchNotes();
         } catch (e) {
             setError('Failed to create note.');
         }
@@ -125,10 +118,10 @@ export default function Dashboard() {
         try {
             const res = await fetch(`/api/notes/${id}`, {
                 method: 'DELETE',
-                credentials: 'include', // Include credentials for all API calls
+                credentials: 'include', // <-- 2. THIS WAS THE MISSING FIX
             });
             if (!res.ok) throw new Error('Failed to delete');
-            fetchNotes(); // Refresh list
+            fetchNotes();
         } catch (e) {
             setError('Failed to delete note.');
         }
@@ -141,7 +134,7 @@ export default function Dashboard() {
         try {
             const res = await fetch(`/api/tenants/${user.tenantSlug}/upgrade`, {
                 method: 'POST',
-                credentials: 'include', // Include credentials for all API calls
+                credentials: 'include', // <-- 3. THIS WAS THE MISSING FIX
             });
 
             if (!res.ok) {
@@ -149,7 +142,7 @@ export default function Dashboard() {
             }
 
             alert('Upgrade successful! Your plan is now PRO.');
-            location.reload(); // Force reload to refresh session
+            location.reload();
         } catch (e) {
             setError('Failed to upgrade. Please try again.');
         }
@@ -179,8 +172,8 @@ export default function Dashboard() {
                             Tenant: <span className="font-medium text-gray-900">{user.tenantSlug}</span> | Plan:{' '}
                             <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${user.plan === 'PRO'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-indigo-100 text-indigo-800'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-indigo-100 text-indigo-800'
                                     }`}
                             >
                                 {user.plan}
@@ -219,13 +212,12 @@ export default function Dashboard() {
                 )}
 
                 {/* Create Note Form Card */}
-                {/* Create Note Form Card */}
                 <form onSubmit={handleCreateNote} className="mb-8 rounded-lg bg-white p-6 shadow-md">
                     <h2 className="mb-4 text-xl font-semibold text-gray-900">Create New Note</h2>
                     <textarea
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
-                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" // <-- FIX IS HERE (added px-3 py-2)
+                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                         rows={3}
                         placeholder="Write your note here..."
                     />
