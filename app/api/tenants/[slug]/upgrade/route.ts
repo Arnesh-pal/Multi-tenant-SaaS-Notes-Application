@@ -23,7 +23,6 @@ export async function POST(
         salt: cookieName // <-- Use the dynamic variable
     });
 
-    // ... (rest of function is the same)
     if (!token || !token.id || !token.tenantId || !token.role) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
