@@ -36,10 +36,11 @@ export default function LoginPage() {
     return (
         <div className="flex min-h-screen flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                {/* Updated Logo Path */}
                 <img
-                    className="mx-auto h-10 w-auto" // <--- 1. ADJUSTED SVG SIZE
-                    src="/folder-svgrepo-com.svg"
-                    alt="Notes Icon"
+                    className="mx-auto h-10 w-auto"
+                    src="/app-logo.png"
+                    alt="App Logo"
                 />
                 <h2 className="mt-6 text-center text-3xl font-extrabold tracking-tight text-gray-900">
                     Sign in to your account
@@ -73,7 +74,7 @@ export default function LoginPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="admin@acme.test"
                                     required
-                                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-gray-900" // <--- 2. ADDED TEXT COLOR
+                                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-gray-900"
                                 />
                             </div>
                         </div>
@@ -91,7 +92,7 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="password"
                                     required
-                                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-gray-900" // <--- 2. ADDED TEXT COLOR
+                                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-gray-900"
                                 />
                             </div>
                         </div>
