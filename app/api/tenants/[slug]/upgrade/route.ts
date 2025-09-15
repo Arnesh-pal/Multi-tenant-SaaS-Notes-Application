@@ -5,32 +5,31 @@ import prisma from '@/lib/prisma';
 import { Role } from '@prisma/client';
 
 // POST /api/tenants/:slug/upgrade
-// This function signature is now fixed to the "context" pattern
 export async function POST(
     request: Request,
-    context: { params: { slug: string } } // <-- 1. THE FIX IS HERE
+    context: { params: { slug: string } } // <-- The correct signature
 ) {
-    const params = context.params; // <-- 2. AND ADD THIS LINE
+    const params = context.params; // <-- Add this line
 
-    // Use getToken instead of auth()
+    // Use getToken
     const token = await getToken({
         req: request,
         secret: process.env.AUTH_SECRET!,
         salt: "authjs.session-token"
     });
 
-    // 1. Check authentication (using the token)
+    // 1. Check authentication
     if (!token || !token.id || !token.tenantId || !token.role) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // 2. REQUIREMENT 2b: Role-based access control
+    // 2. Role Check
     if (token.role !== Role.ADMIN) {
         return NextResponse.json({ error: 'Forbidden: Only admins can upgrade.' }, { status: 403 });
     }
 
-    // 3. Ensure admin is upgrading their OWN tenant
-    if (token.tenantSlug !== params.slug) { // This line works because of Step 2
+    // 3. Tenant Check
+    if (token.tenantSlug !== params.slug) {
         return NextResponse.json({ error: 'Forbidden: You can only upgrade your own tenant.' }, { status: 403 });
     }
 
@@ -38,7 +37,7 @@ export async function POST(
     try {
         await prisma.tenant.update({
             where: {
-                id: token.tenantId, // Use token.tenantId
+                id: token.tenantId,
             },
             data: {
                 plan: 'PRO',
