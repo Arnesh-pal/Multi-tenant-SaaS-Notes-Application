@@ -1,75 +1,103 @@
-export const dynamic = 'force-dynamic';
-
 import { NextResponse } from 'next/server';
+// We are using 'getToken' now, so 'auth' is not needed here.
+// import { auth } from '@/auth'; 
 import { getToken } from 'next-auth/jwt';
 import prisma from '@/lib/prisma';
-import { Plan } from '@prisma/client';
 
-// GET /api/notes
-// Lists all notes for the current tenant
-export async function GET(request: Request) {
+// 🛑 The 'interface RouteParams' has been DELETED
+
+// GET /api/notes/:id
+// Retrieves a specific note, checking tenant isolation
+export async function GET(request: Request, { params }: { params: { id: string } }) { // <-- FIX HERE
     const token = await getToken({
         req: request,
         secret: process.env.AUTH_SECRET!,
-        salt: "authjs.session-token" // Fix for broken types
+        salt: "authjs.session-token"
     });
 
     if (!token || !token.tenantId) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const notes = await prisma.note.findMany({
+    const note = await prisma.note.findFirst({
         where: {
-            tenantId: token.tenantId,
-        },
-        orderBy: {
-            createdAt: 'desc',
+            id: params.id,
+            tenantId: token.tenantId, // CRITICAL: Ensures user can only get their own tenant's notes
         },
     });
 
-    return NextResponse.json(notes);
+    if (!note) {
+        return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(note);
 }
 
-// POST /api/notes
-// Creates a new note, enforcing the free plan limit
-export async function POST(request: Request) {
+// PUT /api/notes/:id
+// Updates a specific note, checking tenant isolation
+export async function PUT(request: Request, { params }: { params: { id: string } }) { // <-- FIX HERE
     const token = await getToken({
         req: request,
         secret: process.env.AUTH_SECRET!,
-        salt: "authjs.session-token" // Fix for broken types
+        salt: "authjs.session-token"
     });
 
-    if (!token || !token.id || !token.tenantId || !token.tenantPlan) {
+    if (!token || !token.tenantId) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // REQUIREMENT 3: Subscription Feature Gating
-    if (token.tenantPlan === Plan.FREE) {
-        const count = await prisma.note.count({
-            where: { tenantId: token.tenantId },
+    const { content } = (await request.json()) as { content: string };
+
+    try {
+        const result = await prisma.note.updateMany({
+            where: {
+                id: params.id,
+                tenantId: token.tenantId, // CRITICAL: Ensures user can only update their own tenant's notes
+            },
+            data: {
+                content,
+            },
         });
 
-        if (count >= 3) {
-            return NextResponse.json(
-                { error: 'Free plan limit of 3 notes reached.', code: 'ERR_LIMIT_REACHED' },
-                { status: 403 }
-            );
+        if (result.count === 0) {
+            return NextResponse.json({ error: 'Note not found or no permission' }, { status: 404 });
         }
-    }
 
-    // If check passes, create the note
-    const { content } = (await request.json()) as { content: string };
-    if (!content) {
-        return NextResponse.json({ error: 'Content is required' }, { status: 400 });
-    }
+        return NextResponse.json({ status: 'updated' });
 
-    const newNote = await prisma.note.create({
-        data: {
-            content,
-            authorId: token.id,
-            tenantId: token.tenantId,
-        },
+    } catch (error) { // This 'error' is what the warning was about
+        return NextResponse.json({ error: 'Failed to update note' }, { status: 500 });
+    }
+}
+
+// DELETE /api/notes/:id
+// Deletes a specific note, checking tenant isolation
+export async function DELETE(request: Request, { params }: { params: { id: string } }) { // <-- FIX HERE
+    const token = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET!,
+        salt: "authjs.session-token"
     });
 
-    return NextResponse.json(newNote, { status: 201 });
+    if (!token || !token.tenantId) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    try {
+        const result = await prisma.note.deleteMany({
+            where: {
+                id: params.id,
+                tenantId: token.tenantId, // CRITICAL: Ensures user can only delete their own tenant's notes
+            },
+        });
+
+        if (result.count === 0) {
+            return NextResponse.json({ error: 'Note not found or no permission' }, { status: 404 });
+        }
+
+        return NextResponse.json({ status: 'deleted' }, { status: 200 });
+
+    } catch (error) { // This 'error' is what the warning was about
+        return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 });
+    }
 }
