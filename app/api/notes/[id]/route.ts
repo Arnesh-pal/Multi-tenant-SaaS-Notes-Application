@@ -1,34 +1,26 @@
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/auth'; // <-- Use auth, not getToken
 import prisma from '@/lib/prisma';
 
-// Set the cookie name based on the environment (for Vercel/localhost)
-const cookieName = process.env.NODE_ENV === 'production'
-    ? '__Secure-authjs.session-token'
-    : 'authjs.session-token';
+// 🛑 Removed cookieName and getToken imports
 
 // GET /api/notes/:id
 export async function GET(
     request: Request,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    context: any // <-- APPLYING BYPASS HACK
+    context: any
 ) {
-    const params = context.params; // Add this line
+    const params = context.params;
+    const session = await auth(); // <-- Reverted to auth()
 
-    const token = await getToken({
-        req: request,
-        secret: process.env.AUTH_SECRET!,
-        salt: cookieName
-    });
-
-    if (!token || !token.tenantId) {
+    if (!session?.user?.tenantId) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const note = await prisma.note.findFirst({
         where: {
             id: params.id,
-            tenantId: token.tenantId,
+            tenantId: session.user.tenantId, // Use session.user
         },
     });
 
@@ -43,39 +35,28 @@ export async function GET(
 export async function PUT(
     request: Request,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    context: any // <-- APPLYING BYPASS HACK
+    context: any
 ) {
-    const params = context.params; // Add this line
+    const params = context.params;
+    const session = await auth(); // <-- Reverted to auth()
 
-    const token = await getToken({
-        req: request,
-        secret: process.env.AUTH_SECRET!,
-        salt: cookieName
-    });
-
-    if (!token || !token.tenantId) {
+    if (!session?.user?.tenantId) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { content } = (await request.json()) as { content: string };
-
     try {
         const result = await prisma.note.updateMany({
             where: {
                 id: params.id,
-                tenantId: token.tenantId,
+                tenantId: session.user.tenantId, // Use session.user
             },
-            data: {
-                content,
-            },
+            data: { content },
         });
-
         if (result.count === 0) {
             return NextResponse.json({ error: 'Note not found or no permission' }, { status: 404 });
         }
-
         return NextResponse.json({ status: 'updated' });
-
     } catch (error) {
         return NextResponse.json({ error: 'Failed to update note' }, { status: 500 });
     }
@@ -85,17 +66,12 @@ export async function PUT(
 export async function DELETE(
     request: Request,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    context: any // <-- APPLYING BYPASS HACK
+    context: any
 ) {
-    const params = context.params; // Add this line
+    const params = context.params;
+    const session = await auth(); // <-- Reverted to auth()
 
-    const token = await getToken({
-        req: request,
-        secret: process.env.AUTH_SECRET!,
-        salt: cookieName
-    });
-
-    if (!token || !token.tenantId) {
+    if (!session?.user?.tenantId) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -103,16 +79,13 @@ export async function DELETE(
         const result = await prisma.note.deleteMany({
             where: {
                 id: params.id,
-                tenantId: token.tenantId,
+                tenantId: session.user.tenantId, // Use session.user
             },
         });
-
         if (result.count === 0) {
             return NextResponse.json({ error: 'Note not found or no permission' }, { status: 404 });
         }
-
         return NextResponse.json({ status: 'deleted' }, { status: 200 });
-
     } catch (error) {
         return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 });
     }

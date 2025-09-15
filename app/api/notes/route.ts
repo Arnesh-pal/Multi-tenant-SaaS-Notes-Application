@@ -1,30 +1,24 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/auth'; // <-- Use auth, not getToken
 import prisma from '@/lib/prisma';
 import { Plan } from '@prisma/client';
 
-// Set the cookie name based on the environment
-const cookieName = process.env.NODE_ENV === 'production'
-    ? '__Secure-authjs.session-token'
-    : 'authjs.session-token';
+// 🛑 Removed cookieName and getToken imports
 
 // GET /api/notes
 export async function GET(request: Request) {
-    const token = await getToken({
-        req: request,
-        secret: process.env.AUTH_SECRET!,
-        salt: cookieName // <-- Use the dynamic variable
-    });
+    const session = await auth(); // <-- Reverted to auth()
 
-    if (!token || !token.tenantId) {
+    // Check the session object
+    if (!session?.user?.tenantId) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const notes = await prisma.note.findMany({
         where: {
-            tenantId: token.tenantId,
+            tenantId: session.user.tenantId, // Use session.user
         },
         orderBy: {
             createdAt: 'desc',
@@ -36,20 +30,17 @@ export async function GET(request: Request) {
 
 // POST /api/notes
 export async function POST(request: Request) {
-    const token = await getToken({
-        req: request,
-        secret: process.env.AUTH_SECRET!,
-        salt: cookieName // <-- Use the dynamic variable
-    });
+    const session = await auth(); // <-- Reverted to auth()
 
-    if (!token || !token.id || !token.tenantId || !token.tenantPlan) {
+    // Check the session object. (Remember: session has 'plan', token has 'tenantPlan')
+    if (!session?.user?.id || !session?.user?.tenantId || !session?.user?.plan) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // ... (rest of the POST function is the same)
-    if (token.tenantPlan === Plan.FREE) {
+    // Check plan from session.user
+    if (session.user.plan === Plan.FREE) {
         const count = await prisma.note.count({
-            where: { tenantId: token.tenantId },
+            where: { tenantId: session.user.tenantId },
         });
 
         if (count >= 3) {
@@ -68,8 +59,8 @@ export async function POST(request: Request) {
     const newNote = await prisma.note.create({
         data: {
             content,
-            authorId: token.id,
-            tenantId: token.tenantId,
+            authorId: session.user.id, // Use session.user
+            tenantId: session.user.tenantId, // Use session.user
         },
     });
 
