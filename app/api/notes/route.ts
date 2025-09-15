@@ -5,13 +5,17 @@ import { getToken } from 'next-auth/jwt';
 import prisma from '@/lib/prisma';
 import { Plan } from '@prisma/client';
 
+// Set the cookie name based on the environment
+const cookieName = process.env.NODE_ENV === 'production'
+    ? '__Secure-authjs.session-token'
+    : 'authjs.session-token';
+
 // GET /api/notes
-// This function must only have ONE argument
-export async function GET(request: Request) { // <-- FIX IS HERE
+export async function GET(request: Request) {
     const token = await getToken({
         req: request,
         secret: process.env.AUTH_SECRET!,
-        salt: "authjs.session-token"
+        salt: cookieName // <-- Use the dynamic variable
     });
 
     if (!token || !token.tenantId) {
@@ -31,19 +35,18 @@ export async function GET(request: Request) { // <-- FIX IS HERE
 }
 
 // POST /api/notes
-// This function must only have ONE argument
-export async function POST(request: Request) { // <-- THIS WAS ALREADY CORRECT
+export async function POST(request: Request) {
     const token = await getToken({
         req: request,
         secret: process.env.AUTH_SECRET!,
-        salt: "authjs.session-token"
+        salt: cookieName // <-- Use the dynamic variable
     });
 
     if (!token || !token.id || !token.tenantId || !token.tenantPlan) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // REQUIREMENT 3: Subscription Feature Gating
+    // ... (rest of the POST function is the same)
     if (token.tenantPlan === Plan.FREE) {
         const count = await prisma.note.count({
             where: { tenantId: token.tenantId },
@@ -57,7 +60,6 @@ export async function POST(request: Request) { // <-- THIS WAS ALREADY CORRECT
         }
     }
 
-    // If check passes, create the note
     const { content } = (await request.json()) as { content: string };
     if (!content) {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
