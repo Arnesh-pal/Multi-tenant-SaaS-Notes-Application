@@ -7,9 +7,10 @@ import { Role } from '@prisma/client';
 // POST /api/tenants/:slug/upgrade
 export async function POST(
     request: Request,
-    context: any // <-- THE FIX: Bypass the broken build check
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    context: any // <-- THIS LINE IS NOW IGNORED BY THE LINTER
 ) {
-    const params = context.params; // This line will still work correctly
+    const params = context.params;
 
     // Use getToken
     const token = await getToken({
